@@ -1,0 +1,206 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// User Model
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  firstName     String?
+  lastName      String?
+  phone         String?
+  avatar        String?
+  
+  // KYC Information
+  kycStatus     String    @default("pending") // pending, verified, rejected
+  kyc           KYC?
+  
+  // Admin Information
+  isAdmin       Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  role          String    @default("user") // user, admin, moderator
+  
+  // Relationships
+  transactions  Transaction[]
+  profile       Profile?
+  activityLogs  ActivityLog[]
+  
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  @@map("users")
+}
+
+// ============================================
+// Profile Model
+// ============================================
+
+model Profile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  bio           String?
+  country       String?
+  city          String?
+  address       String?
+  
+  preferences   Json?
+  settings      Json?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("profiles")
+}
+
+// ============================================
+// KYC Model
+// ============================================
+
+model KYC {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Personal Information
+  fullName        String
+  dateOfBirth     DateTime
+  nationality     String
+  documentType    String    // passport, id_card, driver_license
+  documentNumber  String
+  
+  // Address Information
+  street          String
+  city            String
+  state           String
+  zipCode         String
+  country         String
+  
+  // Verification
+  status          String    @default("pending") // pending, verified, rejected
+  submittedAt     DateTime  @default(now())
+  verifiedAt      DateTime?
+  rejectionReason String?
+  
+  // Document URLs
+  documentUrl     String
+  selfieUrl       String
+  addressProofUrl String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("kyc")
+}
+
+// ============================================
+// Transaction Model
+// ============================================
+
+model Transaction {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Transaction Details
+  type            String    // deposit, withdrawal, transfer, payment
+  amount          Float
+  currency        String    @default("USD")
+  description     String?
+  status          String    @default("pending") // pending, completed, failed, cancelled
+  
+  // Transaction Information
+  fromAddress     String?
+  toAddress       String?
+  hash            String?   @unique
+  
+  // Fees and Commission
+  fee             Float     @default(0)
+  commission      Float     @default(0)
+  
+  // Metadata
+  metadata        Json?
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@map("transactions")
+}
+
+// ============================================
+// Activity Log Model
+// ============================================
+
+model ActivityLog {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Activity Details
+  action          String    // login, logout, update_profile, create_transaction, etc
+  description     String?
+  
+  // Request Information
+  ipAddress       String?
+  userAgent       String?
+  
+  // Status
+  status          String    @default("success")
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// ============================================
+// Settings Model
+// ============================================
+
+model Settings {
+  id              String    @id @default(cuid())
+  
+  // Application Settings
+  appName         String    @default("I-Whalle")
+  appUrl          String
+  appVersion      String    @default("1.0.0")
+  
+  // Email Settings
+  emailFrom       String
+  emailReplyTo    String
+  
+  // Maintenance
+  isUnderMaintenance Boolean @default(false)
+  maintenanceMessage String?
+  
+  // Feature Flags
+  featureFlags    Json?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("settings")
+}

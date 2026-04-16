@@ -1,0 +1,64 @@
+name: Backend Tests & Lint
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: i_whalle_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'backend/package-lock.json'
+    
+    - name: Install dependencies
+      working-directory: backend
+      run: npm install
+    
+    - name: Run linter
+      working-directory: backend
+      run: npm run lint
+    
+    - name: Build
+      working-directory: backend
+      run: npm run build
+      env:
+        NODE_ENV: test
+
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: test-and-lint
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build Docker image
+      run: docker build -t i-whalle-backend:latest ./backend
